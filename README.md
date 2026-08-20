@@ -81,7 +81,7 @@ go vet . && go test ./...
 2. Package `<id>_<version>_<goos>_<goarch>.zip` with the library at the zip
    root named `deepseek-reasoning-fixer.so`.
 3. Generate `checksums.txt` (sha256 of the zip).
-4. `gh release create v0.1.0 deepseek-reasoning-fixer_0.1.0_linux_amd64.zip checksums.txt`
+4. `gh release create v0.1.1 deepseek-reasoning-fixer_0.1.1_linux_amd64.zip checksums.txt`
 
 ## License
 

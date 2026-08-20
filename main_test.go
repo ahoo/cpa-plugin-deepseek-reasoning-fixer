@@ -14,8 +14,10 @@ func TestFixReasoningContent(t *testing.T) {
 		expected int
 	}{
 		{
-			name: "no reasoning_effort: untouched",
-			body: `{"model":"deepseek-v4-flash-free","messages":[{"role":"assistant","content":"hi"}]}`,
+			name:     "no reasoning_effort with existing valid rc: untouched",
+			body:     `{"model":"deepseek-v4-flash-free","messages":[{"role":"assistant","content":"hi","reasoning_content":"valid"}]}`,
+			changed:  false,
+			expected: 1,
 		},
 		{
 			name: "reasoning_effort none: untouched",
@@ -63,6 +65,17 @@ func TestFixReasoningContent(t *testing.T) {
 			changed: false,
 		},
 		{
+			name:     "no reasoning_effort field still fixed (claude-translated path)",
+			body:     `{"model":"deepseek-v4-flash-free","messages":[{"role":"assistant","content":"a"},{"role":"assistant","tool_calls":[{"id":"t1"}]}]}`,
+			changed:  true,
+			expected: 2,
+		},
+		{
+			name:     "reasoning level none skipped",
+			body:     `{"model":"deepseek-v4-flash-free","reasoning":{"level":"none"},"messages":[{"role":"assistant","content":"a"}]}`,
+			changed:  false,
+		},
+				{
 			name:    "user messages untouched",
 			body:    `{"model":"deepseek-v4-flash-free","reasoning_effort":"max","messages":[{"role":"user","content":"q"}]}`,
 			changed: false,

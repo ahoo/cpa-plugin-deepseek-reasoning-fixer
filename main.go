@@ -65,7 +65,7 @@ const abiVersion uint32 = 1
 
 const (
 	pluginID      = "deepseek-reasoning-fixer"
-	pluginVersion = "0.1.0"
+	pluginVersion = "0.1.1"
 
 	placeholderReasoningContent = "[reasoning unavailable]"
 )
@@ -212,9 +212,23 @@ func fixReasoningContent(body []byte) ([]byte, bool, error) {
 	if errUnmarshal := json.Unmarshal(body, &payload); errUnmarshal != nil {
 		return nil, false, nil
 	}
-	effort, ok := payload["reasoning_effort"].(string)
-	if !ok || effort == "" || effort == "none" {
-		return nil, false, nil
+	// Gate on "thinking mode" signals, not just reasoning_effort:
+	// - OpenAI format exposes reasoning_effort (max/high/medium/low).
+	// - Claude->OpenAI translation may drop the field entirely even though
+	//   the upstream still expects reasoning_content on assistant messages
+	//   (observed: claude request with thinking:{"type":"disabled"} was
+	//   translated without reasoning_effort, upstream still rejected).
+	// - A translated body may also carry "reasoning" (responses-API style).
+	// To be safe for DeepSeek models we skip only when reasoning is
+	// explicitly disabled ("none"/"disabled"); otherwise fill in missing rc.
+	if effort, ok := payload["reasoning_effort"].(string); ok {
+		if effort == "none" {
+			return nil, false, nil
+		}
+	} else if reasoning, ok := payload["reasoning"].(map[string]any); ok {
+		if lvl, ok := reasoning["level"].(string); ok && lvl == "none" {
+			return nil, false, nil
+		}
 	}
 	messagesRaw, ok := payload["messages"].([]any)
 	if !ok || len(messagesRaw) == 0 {
