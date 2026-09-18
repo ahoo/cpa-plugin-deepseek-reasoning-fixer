@@ -65,7 +65,7 @@ const abiVersion uint32 = 1
 
 const (
 	pluginID      = "deepseek-reasoning-fixer"
-	pluginVersion = "0.1.1"
+	pluginVersion = "0.1.2"
 
 	placeholderReasoningContent = "[reasoning unavailable]"
 )
@@ -197,14 +197,61 @@ func normalizeRequest(payload []byte) ([]byte, error) {
 	if !strings.Contains(strings.ToLower(model), "deepseek") {
 		return okEnvelopeJSON(payloadResponse{Body: req.Body})
 	}
-	fixed, changed, errFix := fixReasoningContent(req.Body)
+	body := req.Body
+	fixedDev, changedDev, errDev := fixDeveloperRole(body)
+	if errDev != nil {
+		return nil, errDev
+	}
+	if changedDev {
+		body = fixedDev
+	}
+	fixed, changed, errFix := fixReasoningContent(body)
 	if errFix != nil {
 		return nil, errFix
 	}
-	if !changed {
-		return okEnvelopeJSON(payloadResponse{Body: req.Body})
+	if changed {
+		return okEnvelopeJSON(payloadResponse{Body: fixed})
 	}
-	return okEnvelopeJSON(payloadResponse{Body: fixed})
+	if changedDev {
+		return okEnvelopeJSON(payloadResponse{Body: body})
+	}
+	return okEnvelopeJSON(payloadResponse{Body: req.Body})
+}
+
+// fixDeveloperRole rewrites OpenAI "developer" roles to "system" for
+// strict OpenAI-compat upstreams (notably opencode zen/go / Console Go,
+// whose Rust serde enum only accepts system/user/assistant/tool/
+// latest_reminder and rejects developer with 400). OpenAI semantics treat
+// developer as system-priority instructions, so the rewrite preserves
+// behavior while restoring compatibility. Content is left untouched.
+func fixDeveloperRole(body []byte) ([]byte, bool, error) {
+	var payload map[string]any
+	if errUnmarshal := json.Unmarshal(body, &payload); errUnmarshal != nil {
+		return nil, false, nil
+	}
+	messagesRaw, ok := payload["messages"].([]any)
+	if !ok || len(messagesRaw) == 0 {
+		return nil, false, nil
+	}
+	changed := false
+	for _, msgRaw := range messagesRaw {
+		msg, ok := msgRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if role, _ := msg["role"].(string); role == "developer" {
+			msg["role"] = "system"
+			changed = true
+		}
+	}
+	if !changed {
+		return nil, false, nil
+	}
+	out, errMarshal := json.Marshal(payload)
+	if errMarshal != nil {
+		return nil, false, errMarshal
+	}
+	return out, true, nil
 }
 
 func fixReasoningContent(body []byte) ([]byte, bool, error) {

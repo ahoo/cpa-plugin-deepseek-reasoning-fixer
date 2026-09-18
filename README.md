@@ -15,13 +15,18 @@ thinking mode strictly and rejects such requests with:
 This plugin normalizes outgoing requests: for DeepSeek models in thinking mode
 it fills missing/empty `reasoning_content` on assistant messages with a
 placeholder, so the upstream accepts the request and the conversation survives.
+It also rewrites OpenAI `developer` message roles to `system`, because strict
+OpenAI-compat upstreams (notably opencode `zen/go` / Console Go, whose role
+enum only accepts `system`/`user`/`assistant`/`tool`/`latest_reminder`) reject
+`developer` with `400 unknown variant`.
 
 ## Capability
 
 - `request_normalizer` — runs on every translated request.
-- Only touches requests whose model name contains `deepseek` and whose
-  `reasoning_effort` is set to something other than `none`.
-- Assistant messages with a valid non-empty `reasoning_content` are left
+- Only touches requests whose model name contains `deepseek`.
+- Role compat: `developer` roles are rewritten to `system` (content untouched).
+- Thinking mode: when `reasoning_effort` is set to something other than `none`,
+  assistant messages with a valid non-empty `reasoning_content` are left
   untouched; unknown shapes (objects, numbers, booleans) are passed through
   verbatim.
 
@@ -81,7 +86,7 @@ go vet . && go test ./...
 2. Package `<id>_<version>_<goos>_<goarch>.zip` with the library at the zip
    root named `deepseek-reasoning-fixer.so`.
 3. Generate `checksums.txt` (sha256 of the zip).
-4. `gh release create v0.1.1 deepseek-reasoning-fixer_0.1.1_linux_amd64.zip checksums.txt`
+4. `gh release create v0.1.2 deepseek-reasoning-fixer_0.1.2_linux_amd64.zip checksums.txt`
 
 ## License
 

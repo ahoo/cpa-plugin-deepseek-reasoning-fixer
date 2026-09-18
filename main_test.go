@@ -116,6 +116,55 @@ func TestFixReasoningContent(t *testing.T) {
 	}
 }
 
+func TestFixDeveloperRole(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		changed bool
+	}{
+		{
+			name:    "developer rewritten to system",
+			body:    `{"model":"deepseek-flash","messages":[{"role":"developer","content":"sys"},{"role":"user","content":"hi"}]}`,
+			changed: true,
+		},
+		{
+			name:    "system untouched",
+			body:    `{"model":"deepseek-flash","messages":[{"role":"system","content":"sys"},{"role":"user","content":"hi"}]}`,
+			changed: false,
+		},
+		{
+			name:    "no messages untouched",
+			body:    `{"model":"deepseek-flash"}`,
+			changed: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out, changed, err := fixDeveloperRole([]byte(c.body))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if changed != c.changed {
+				t.Fatalf("changed = %v, want %v", changed, c.changed)
+			}
+			if !c.changed {
+				return
+			}
+			var payload map[string]any
+			if err := json.Unmarshal(out, &payload); err != nil {
+				t.Fatalf("invalid output json: %v", err)
+			}
+			msgs := payload["messages"].([]any)
+			if msgs[0].(map[string]any)["role"] != "system" {
+				t.Fatalf("role not rewritten: %v", msgs[0])
+			}
+			if strings.Contains(string(out), `"developer"`) {
+				t.Fatalf("developer remains: %s", string(out))
+			}
+		})
+	}
+}
+
 func TestNormalizeRequestModelFilter(t *testing.T) {
 	nonDeepseek := `{"model":"gpt-5.6","reasoning_effort":"max","messages":[{"role":"assistant","content":"a"}]}`
 	req, _ := json.Marshal(requestTransformRequest{

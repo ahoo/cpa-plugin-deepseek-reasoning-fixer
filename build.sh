@@ -23,9 +23,9 @@ docker run --rm \
   -e "CGO_ENABLED=1" \
   "${GO_IMAGE}" \
   sh -ec '
-    go build -buildmode=c-shared -o /out/'"${PLUGIN_NAME}"'-v0.1.1.so .
+    go build -buildmode=c-shared -o /out/'"${PLUGIN_NAME}"'-v0.1.2.so .
     # c-shared also emits a header next to the .so; cliproxy does not need it.
-    rm -f /out/'"${PLUGIN_NAME}"'-v0.1.1.h
+    rm -f /out/'"${PLUGIN_NAME}"'-v0.1.2.h
   '
 
-echo "[build] ok: ${OUT_DIR}/${PLUGIN_NAME}-v0.1.1.so"
+echo "[build] ok: ${OUT_DIR}/${PLUGIN_NAME}-v0.1.2.so"
